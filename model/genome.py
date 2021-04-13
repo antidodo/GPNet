@@ -4,11 +4,14 @@ from matplotlib import pyplot as plt
 
 
 class Genome():
-    def __init__(self,nodes):
+    def __init__(self,nodes,seed):
         self.nodes = nodes
         self.random = random
+        self.random.seed(seed)
         self.graph = self.generate_dag_graph()
-        #self.permut_graph()
+        self.print_graph(self.graph)
+        self.permut_graph(10,0.5)
+        self.print_graph(self.graph)
 
     def generate_dag_graph(self):
         """
@@ -19,17 +22,19 @@ class Genome():
         # generate ranom graph
         G = nx.DiGraph()
         G.add_nodes_from(range(self.nodes))
+        return self.fix_graph(G)
+
+    def fix_graph(self,graph):
+        """adds edges to the graph until all nodes are reachable"""
         graph_compleate_reachable = False
         while not graph_compleate_reachable:
-            not_reachable_in ,not_reachable_out = self.not_reachable(G)
+            not_reachable_in ,not_reachable_out = self.not_reachable(graph)
             for n in not_reachable_in:
-                G.add_edge(self.random.randint(0,n-1),n)
+                graph.add_edge(self.random.randint(0,n-1),n)
             for n in not_reachable_out:
-                G.add_edge(n,self.random.randint(n+1, self.nodes-1))
+                graph.add_edge(n,self.random.randint(n+1, self.nodes-1))
             graph_compleate_reachable = len(not_reachable_in)==0 and len(not_reachable_out)==0
-        self.print_graph(G)
-        # all the edges that are reachable from the first node and that can influence the last node
-        return G
+        return graph
 
 
     def not_reachable(self,graph):
@@ -42,7 +47,7 @@ class Genome():
         reachable_out = nx.ancestors(graph, self.nodes - 1)
         # add the last node back in
         reachable_out.add(self.nodes - 1)
-        reachable = reachable_in and reachable_out
+
         set_of_nodes = set(range(1, self.nodes))
 
         not_reachable_in = set_of_nodes - reachable_in
@@ -59,9 +64,27 @@ class Genome():
         nx.draw_networkx(graph, arrows=True)
         plt.show()
 
-    def permut_graph(self):
-        
-        set(self.graph.nodes)
+    def permut_graph(self,permutaions,add_delete_prop):
+        """chages self.graph as many times as given in permutaions with
+        deletion  of edges p(1-add_delete_prop) or additions of edges p(add_delete_prop)
+        at the ende the graph is fixed to ensure all nodes are reachable."""
+        edges = list(self.graph.edges)
+        nonedges = list(nx.non_edges(self.graph))
+        nonedges = list(filter(lambda x: x[0]<x[1], nonedges))
+        for _ in range(permutaions):
+            if self.random.random() < add_delete_prop:
+                chosen_edge = self.random.choice(nonedges)
+                self.graph.add_edge(chosen_edge[0], chosen_edge[1])
+                nonedges.remove(chosen_edge)
+                edges.append(chosen_edge)
+            else:
+                chosen_edge = self.random.choice(edges)
+                self.graph.remove_edge(chosen_edge[0], chosen_edge[1])
+                edges.remove(chosen_edge)
+                nonedges.append(chosen_edge)
+        self.graph = self.fix_graph(self.graph)
 
 
-genome  = Genome(100)
+    def merge_perent_graphs(self, first_PARENT_graph,second_parnt_graph):
+        pass
+genome  = Genome(20,42)
