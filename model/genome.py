@@ -1,18 +1,18 @@
 import networkx as nx
-import random
+from random import Random
 from matplotlib import pyplot as plt
+import math
+import numpy as np
+from tqdm import tqdm
+
+
 
 
 class Genome():
-    def __init__(self,nodes,seed):
+    def __init__(self,nodes,random):
         self.nodes = nodes
         self.random = random
-        self.random.seed(seed)
         self.graph = self.generate_dag_graph()
-        self.print_graph(self.graph)
-        self.permut_graph(10,0.5)
-        self.print_graph(self.graph)
-
     def generate_dag_graph(self):
         """
         returns a random dag graph of size self.nodes that has only nodes that are reachable from the first node
@@ -64,14 +64,19 @@ class Genome():
         nx.draw_networkx(graph, arrows=True)
         plt.show()
 
+
+
     def permut_graph(self,permutaions,add_delete_prop):
         """chages self.graph as many times as given in permutaions with
         deletion  of edges p(1-add_delete_prop) or additions of edges p(add_delete_prop)
-        at the ende the graph is fixed to ensure all nodes are reachable."""
+        at the ende the graph is fixed to ensure all nodes are reachable.
+        p --> add : 1- p --> delete
+        """
         edges = list(self.graph.edges)
         nonedges = list(nx.non_edges(self.graph))
-        nonedges = list(filter(lambda x: x[0]<x[1], nonedges))
-        for _ in range(permutaions):
+        nonedges = self.filter_edges(nonedges)
+
+        for _ in tqdm(range(permutaions)):
             if self.random.random() < add_delete_prop:
                 chosen_edge = self.random.choice(nonedges)
                 self.graph.add_edge(chosen_edge[0], chosen_edge[1])
@@ -85,6 +90,40 @@ class Genome():
         self.graph = self.fix_graph(self.graph)
 
 
-    def merge_perent_graphs(self, first_PARENT_graph,second_parnt_graph):
-        pass
-genome  = Genome(20,42)
+    def filter_edges(self,edges):
+        """
+        filters a list of edges to only return edgeswith x[0]<x[1]
+        :param edges:
+        :return:
+        """
+        return list(filter(lambda x: x[0]<x[1],edges))
+
+
+    def merge_perent_graphs(self, first_parent,second_parent):
+        assert (first_parent.nodes == second_parent.nodes == self.nodes)
+        G = nx.DiGraph()
+        G.add_nodes_from(range(first_parent.nodes))
+        first_edges = set(first_parent.graph.edges)
+        second_edges = set(second_parent.graph.edges)
+        commen_edges = set(set(first_edges).intersection(second_edges))
+        unique_edges = list((first_edges - commen_edges).union( second_edges -commen_edges))
+        selected_unique_edges =unique_edges[:math.floor(len(unique_edges) / 2)]
+        G.add_edges_from(commen_edges)
+        G.add_edges_from(selected_unique_edges)
+        G = self.fix_graph(G)
+        self.graph = G
+
+        addet_egdges = math.floor(self.graph.number_of_edges()-(second_parent.graph.number_of_edges()+ first_parent.graph.number_of_edges())/2)
+        if addet_egdges > 0:
+            self.permut_graph(addet_egdges,0)
+        else:
+            self.permut_graph(-addet_egdges,1)
+
+
+random = Random()
+genome1  = Genome(2000,random)
+genome2 =  Genome(2000,random)
+genome_child = Genome(2000,random)
+genome_child.merge_perent_graphs(genome1,genome2)
+
+
